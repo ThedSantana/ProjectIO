@@ -4,24 +4,36 @@ import android.*;
 import android.Manifest;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
+import android.media.MediaPlayer;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.MenuItemCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
@@ -30,6 +42,9 @@ import com.google.android.gms.location.GeofencingRequest;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompleteFilter;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.ui.PlaceAutocomplete;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -61,6 +76,7 @@ public class MainActivity extends AppCompatActivity
     private GoogleMap map;
     private GoogleApiClient googleApiClient;
     private Location lastLocation;
+    private FloatingActionButton fab;
 
     private static final String NOTIFICATION_MSG = "NOTIFICATION_MSG";
     //Create an intent send by the notification
@@ -76,6 +92,7 @@ public class MainActivity extends AppCompatActivity
         setContentView(R.layout.activity_main);
         textLat = (TextView) findViewById(R.id.lat);
         textLong = (TextView) findViewById(R.id.lon);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
 
 
         //Initialize GoogleMaps
@@ -83,6 +100,26 @@ public class MainActivity extends AppCompatActivity
 
         //Create GoogleApiClient instance
         createGoogleApi();
+
+        //Set a click listener for the floating action button to create a Geofence
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                if(geoFenceMarker != null){
+                    startGeofence();
+
+
+                }else
+                    Snackbar.make(v,"Tap on the map to create a Geofence marker",Snackbar.LENGTH_SHORT)
+                    .setAction("Action",null).show();
+
+
+            }
+        });
+
+
+
     }
 
     //Method to create a GoogleApiClient instance
@@ -162,7 +199,7 @@ public class MainActivity extends AppCompatActivity
 
     private LocationRequest locationRequest;
     //Defined in milliseconds
-    private final int UPDATE_INTERVAL = 1000;
+    private final int UPDATE_INTERVAL = 10000;
     private final int FASTEST_INTERVAL = 900;
     private final int REQ_PERMISSION = 1;
 
@@ -177,6 +214,9 @@ public class MainActivity extends AppCompatActivity
 
         if(checkPermission())
             LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient,locationRequest,this);
+
+            //Show your current location on the map (blue dot)
+            map.setMyLocationEnabled(true);
     }
 
     //Callback when location is changed
@@ -266,14 +306,22 @@ public class MainActivity extends AppCompatActivity
     public void onMapReady(GoogleMap googleMap) {
         Log.d(TAG, "onMapReady()");
         map = googleMap;
+
+        //Sets a callback that is invoked when the map is touched
         map.setOnMapClickListener(this);
+
+        //Sets a callback that is invoked when the marker is touched
         map.setOnMarkerClickListener(this);
+
+
     }
 
     //Callback called when the Map is touched
     @Override
     public void onMapClick(LatLng latLng) {
         Log.d(TAG, "onMapClick("+latLng+")");
+
+        //Create a Geofence location using a marker
         markerForGeofence(latLng);
     }
 
@@ -284,8 +332,12 @@ public class MainActivity extends AppCompatActivity
         Log.i(TAG, "markerLocation(" + latLng+ ")");
         String title = latLng.latitude + ", " + latLng.longitude;
         MarkerOptions markerOptions = new MarkerOptions()
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_CYAN))
                 .position(latLng)
-                .title(title);
+                .title("My Current Location")
+                .snippet(title);
+
+
 
         if(map!=null){
 
@@ -311,14 +363,19 @@ public class MainActivity extends AppCompatActivity
         //Define marker options
         MarkerOptions markerOptions = new MarkerOptions()
                 .position(latLng)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE))
-                .title(title);
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE))
+                .title("My Geofence")
+                .snippet(title);
+
 
         if(map!=null){
 
             //Remove last geoFenceMarker
-            if(geoFenceMarker != null)
+            if(geoFenceMarker != null){
                 geoFenceMarker.remove();
+
+            }
+
 
             geoFenceMarker = map.addMarker(markerOptions);
 
@@ -332,16 +389,64 @@ public class MainActivity extends AppCompatActivity
     //Callback called when Marker is touched
 
     @Override
-    public boolean onMarkerClick(Marker marker) {
+    public boolean onMarkerClick(final Marker marker) {
         Log.d(TAG, "onMarkerClickListener: " + marker.getPosition());
+
+      if(geoFenceMarker!= null)
+        if(marker.getTitle().equals(geoFenceMarker.getTitle())){
+
+
+          //Show alert dialog
+          showAlertDialog(marker);
+
+          return true;
+
+
+      }
+
         return false;
+    }
+
+    //Method to show an alert dialog when a Geofence marker is clicked
+    private void showAlertDialog(final Marker marker){
+
+
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setMessage(R.string.dialog_message)
+                .setPositiveButton(R.string.dialog_save, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                        //User clicked Save button
+                    }
+                })
+                .setNegativeButton(R.string.dialog_remove, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                        //remove the marker
+                        marker.remove();
+                    }
+                })
+                .setNeutralButton(R.string.dialog_cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                        //User clicked the Cancel Button
+                    }
+                })
+                .create();
+
+        dialog.show();
+
     }
 
 
     //Create a Geofence
     private static final long GEO_DURATION = 60*60*1000;
     private static final String GEOFENCE_REQ_ID = "My Geofence";
-    private static final float GEOFENCE_RADIUS = 100.0f; // in meters
+    private static float GEOFENCE_RADIUS = 100.0f; // in meters
 
     //Create a Geofence
     private Geofence createGeofence( LatLng latLng, float radius){
@@ -357,7 +462,6 @@ public class MainActivity extends AppCompatActivity
 
 
     //Create a GeofenceRequest object
-
     private GeofencingRequest createGeofenceRequest (Geofence geofence){
         Log.d(TAG, "createGeofenceRequest");
         return new GeofencingRequest.Builder()
@@ -377,6 +481,7 @@ public class MainActivity extends AppCompatActivity
             return geoFencePendingIntent;
 
         Intent intent = new Intent(this, GeofenceTransitionService.class);
+
         return PendingIntent.getService(
                 this, GEOFENCE_REQ_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT
         );
@@ -431,16 +536,109 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu, menu);
-        return true;
+
+        getMenuInflater().inflate(R.menu.menu, menu);
+
+        MenuItem spinnerItem = menu.findItem(R.id.menu_spinner);
+
+        Spinner spinner = (Spinner) MenuItemCompat.getActionView(spinnerItem);
+
+        //Create an ArrayAdapter using the string array and a default spinner layout
+        ArrayAdapter<CharSequence> mSpinnerAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.geofence_radius_options,
+                android.R.layout.simple_spinner_dropdown_item);
+
+        //Attach the adapter to the spinner
+        spinner.setAdapter(mSpinnerAdapter);
+
+        //Handle user selections
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+
+                //Dynamically change the Geofence Radius based on the user's choice
+
+                switch (position){
+
+                    case 0:
+                        //Set Geofence radius to 100 meters
+                        GEOFENCE_RADIUS = 100.0f;
+                        break;
+                    case 1:
+                        //Set Geofence radius to 200 meters
+                        GEOFENCE_RADIUS = 200.0f;
+                        break;
+                    case 2:
+                        //Set Geofence radius to 300 meters
+                        GEOFENCE_RADIUS = 300.0f;
+                        break;
+                    case 3:
+                        //Set Geofence radius to 500 meters
+                        GEOFENCE_RADIUS = 500.0f;
+                        break;
+                    case 4:
+                        //Set Geofence radius to 1 kilometers
+                        GEOFENCE_RADIUS = 1000.0f;
+                        break;
+                    default:
+                        //default radius 100 meters
+                        GEOFENCE_RADIUS = 100.0f;
+
+
+
+                }
+
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+
+
+
+        return super.onCreateOptionsMenu(menu);
     }
+
+    //PlaceAutocomplete request code
+    private final  int PLACE_AUTOCOMPLETE_REQUEST_CODE =1;
+
+    //Filter results by country
+    AutocompleteFilter typeFilter = new AutocompleteFilter.Builder()
+            .setCountry("PH")
+            .build();
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
 
 
         switch (item.getItemId()){
+
+            case R.id.action_search:{
+
+                try{
+
+                    Intent intent =
+                            new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_OVERLAY)
+                             .setFilter(typeFilter)
+                            .build(this);
+
+                    startActivityForResult(intent,PLACE_AUTOCOMPLETE_REQUEST_CODE);
+
+                }catch (GooglePlayServicesRepairableException e){
+
+                    e.printStackTrace();
+
+                }catch (GooglePlayServicesNotAvailableException e){
+
+                    e.printStackTrace();
+                }
+
+
+            }
+
             case R.id.geofence: {
 
                 startGeofence();
@@ -466,8 +664,26 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    //Handle the selected place from the Autocomplete widget
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(requestCode == PLACE_AUTOCOMPLETE_REQUEST_CODE)
+            if(resultCode == RESULT_OK){
+
+                Place place = PlaceAutocomplete.getPlace(this,data);
+                Log.i(TAG, "Place: " + place.getName());
+
+                //Create a Geofence Marker on the selected location
+                markerForGeofence(place.getLatLng());
 
 
+            }else if (resultCode == PlaceAutocomplete.RESULT_ERROR){
+                Status status = PlaceAutocomplete.getStatus(this, data);
 
+                Log.i(TAG, status.getStatusMessage());
+            }else if(requestCode == RESULT_CANCELED){
 
+                //The user canceled the operation.
+            }
+    }
 }

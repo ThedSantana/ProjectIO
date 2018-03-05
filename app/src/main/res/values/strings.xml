@@ -1,3 +1,19 @@
 <resources>
-    <string name="app_name">Geofence</string>
+    <string name="app_name">ProjectIO</string>
+
+    <!--Create a string array to list the Geofence radius options-->
+    <string-array name="geofence_radius_options">
+        <item>100m</item>
+        <item>200m</item>
+        <item>300m</item>
+        <item>500m</item>
+        <item>1km</item>
+    </string-array>
+
+    <!--Alert dialog message string -->
+    <string name="dialog_message">What would you like to do with this Marker?</string>
+    <string name="dialog_save">Save</string>
+    <string name="dialog_remove">Remove</string>
+    <string name="dialog_cancel">Cancel</string>
+
 </resources>

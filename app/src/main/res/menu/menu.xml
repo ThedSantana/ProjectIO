@@ -1,9 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/tools">
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item android:id="@+id/geofence" android:title="Create Geofence" app:showAsAction = "never"/>
-    <item android:id="@+id/clear" android:title="Clear Geofence" app:showAsAction = "never"/>
+    <item
+        android:id="@+id/geofence"
+        android:title="Create Geofence"
+        app:showAsAction = "never"/>
+
+    <item
+        android:id="@+id/clear"
+        android:title="Clear Geofence"
+        app:showAsAction = "never"/>
+
+    <!--Add a search menu-->
+    <item
+        android:id="@+id/action_search"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="search"
+        app:showAsAction = "always"/>
+
+    <!-- Add a spinner to set the Geofence radius-->
+    <item
+        android:id="@+id/menu_spinner"
+        android:icon="@android:drawable/ic_menu_mylocation"
+        android:title="Radius"
+        app:actionViewClass = "android.widget.Spinner"
+        app:showAsAction = "always"
+        />
 
 
 </menu>

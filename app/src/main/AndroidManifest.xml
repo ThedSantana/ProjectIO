@@ -10,6 +10,10 @@
         android:theme="@style/AppTheme">
 
         <service android:name=".GeofenceTransitionService"/>
+        <service android:name=".RingtonePlayingService"
+            android:enabled="true">
+
+        </service>
 
         <activity android:name=".MainActivity">
             <intent-filter>
@@ -28,7 +32,9 @@
             android:value="@integer/google_play_services_version" />
 
     </application>
+    
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
 
 </manifest>

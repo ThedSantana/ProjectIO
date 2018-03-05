@@ -8,10 +8,12 @@ import android.app.TaskStackBuilder;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.media.MediaPlayer;
 import android.support.v4.app.NotificationBuilderWithBuilderAccessor;
 import android.support.v7.app.NotificationCompat;
 import android.text.TextUtils;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofenceStatusCodes;
@@ -30,11 +32,22 @@ public class GeofenceTransitionService extends IntentService {
 
     private static final String TAG = GeofenceTransitionService.class.getSimpleName();
     public static final int GEOFENCE_NOTIFICATION_ID = 0;
+    MediaPlayer mediaPlayer;
 
     public GeofenceTransitionService(){
 
         super(TAG);
     }
+
+//    @Override
+//    public void onCreate() {
+//
+//        mediaPlayer = MediaPlayer.create(getApplicationContext(),R.raw.wakeup );
+//        //play audio
+//
+//        mediaPlayer.start();
+//
+//    }
 
     @Override
     protected void onHandleIntent(Intent intent) {
@@ -61,7 +74,17 @@ public class GeofenceTransitionService extends IntentService {
             //Send notification details as a String
             sendNotification(geofenceTransitionDetails);
 
+            //call the ringtone service to play the alarm
+            Intent serviceIntent = new Intent(this, RingtonePlayingService.class);
+            this.startService(serviceIntent);
+
+            Toast.makeText(this,"Has entered the geofennce",Toast.LENGTH_SHORT).show();
         }
+
+
+
+
+
     }
 
     //Create a detailed message with Geofences received
